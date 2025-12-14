@@ -1,0 +1,38 @@
+stages:
+  - build
+  - test
+  - deploy
+
+variables:
+  DOCKER_IMAGE: medical-app
+
+build:
+  stage: build
+  image: docker:latest
+  services:
+    - docker:dind
+  script:
+    - docker build -t $DOCKER_IMAGE .
+  artifacts:
+    paths:
+      - .
+
+test:
+  stage: test
+  image: python:3.9
+  services:
+    - name: redis:7-alpine
+      alias: redis
+  before_script:
+    - pip install -r requirements.txt
+  script:
+    - python3 -m unittest discover tests
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploy stage - реализуй по необходимости"
+  when: manual
+  only:
+    - main
+
