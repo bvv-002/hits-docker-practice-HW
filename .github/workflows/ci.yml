@@ -20,17 +20,24 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
+    - name: List files in root
+      run: ls -l
+
+    - name: List files in python3-app
+      working-directory: python3-app
+      run: ls -l
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: 3.9
 
     - name: Install dependencies
+      working-directory: python3-app
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
     - name: Run tests
-      run: |
-        python -m unittest discover tests
-
+      working-directory: python3-app
+      run: python -m unittest discover tests
