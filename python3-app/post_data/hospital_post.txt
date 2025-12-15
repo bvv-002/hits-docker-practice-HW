@@ -1,0 +1,2 @@
+name=Central+Hospital&address=123+Main+St&beds_number=100&phone=555-1234
+

@@ -9,8 +9,8 @@ import tornado.web
 from tornado.options import parse_command_line
 
 PORT = 8888
-r = redis.StrictRedis(host=os.environ.get("REDIS_HOST", "localhost"), 
-    port=int(os.environ.get("REDIS_PORT", "6379")), db=0)
+r = redis.StrictRedis(host=os.environ.get("REDIS_HOST", "localhost"),
+                      port=int(os.environ.get("REDIS_PORT", "6379")), db=0)
 
 
 class MainHandler(tornado.web.RequestHandler):
@@ -22,11 +22,14 @@ class HospitalHandler(tornado.web.RequestHandler):
     def get(self):
         items = []
         try:
-            ID = r.get("hospital:autoID").decode()
+            ID = r.get("hospital:autoID")
+            if ID is None:
+                ID = b'0'
+            ID = int(ID.decode())
 
-            for i in range(int(ID)):
+            for i in range(ID):
                 result = r.hgetall("hospital:" + str(i))
-                if result:
+                if result and b'name' in result and b'address' in result:
                     items.append(result)
 
         except redis.exceptions.ConnectionError:
@@ -49,9 +52,12 @@ class HospitalHandler(tornado.web.RequestHandler):
         logging.debug(name + ' ' + address + ' ' + beds_number + ' ' + phone)
 
         try:
-            ID = r.get("hospital:autoID").decode()
+            ID = r.get("hospital:autoID")
+            if ID is None:
+                ID = b'0'
+            ID = ID.decode()
 
-            a  = r.hset("hospital:" + ID, "name", name)
+            a = r.hset("hospital:" + ID, "name", name)
             a += r.hset("hospital:" + ID, "address", address)
             a += r.hset("hospital:" + ID, "phone", phone)
             a += r.hset("hospital:" + ID, "beds_number", beds_number)
@@ -61,7 +67,7 @@ class HospitalHandler(tornado.web.RequestHandler):
             self.set_status(400)
             self.write("Redis connection refused")
         else:
-            if (a != 4):
+            if a != 4:
                 self.set_status(500)
                 self.write("Something went terribly wrong")
             else:
@@ -72,11 +78,14 @@ class DoctorHandler(tornado.web.RequestHandler):
     def get(self):
         items = []
         try:
-            ID = r.get("doctor:autoID").decode()
+            ID = r.get("doctor:autoID")
+            if ID is None:
+                ID = b'0'
+            ID = int(ID.decode())
 
-            for i in range(int(ID)):
+            for i in range(ID):
                 result = r.hgetall("doctor:" + str(i))
-                if result:
+                if result and b'surname' in result and b'profession' in result:
                     items.append(result)
 
         except redis.exceptions.ConnectionError:
@@ -88,7 +97,7 @@ class DoctorHandler(tornado.web.RequestHandler):
     def post(self):
         surname = self.get_argument('surname')
         profession = self.get_argument('profession')
-        hospital_ID = self.get_argument('hospital_ID')
+        hospital_ID = self.get_argument('hospital_ID', None)
 
         if not surname or not profession:
             self.set_status(400)
@@ -98,27 +107,28 @@ class DoctorHandler(tornado.web.RequestHandler):
         logging.debug(surname + ' ' + profession)
 
         try:
-            ID = r.get("doctor:autoID").decode()
+            ID = r.get("doctor:autoID")
+            if ID is None:
+                ID = b'0'
+            ID = ID.decode()
 
             if hospital_ID:
-                # check that hospital exist
                 hospital = r.hgetall("hospital:" + hospital_ID)
-
                 if not hospital:
                     self.set_status(400)
                     self.write("No hospital with such ID")
                     return
 
-            a  = r.hset("doctor:" + ID, "surname", surname)
+            a = r.hset("doctor:" + ID, "surname", surname)
             a += r.hset("doctor:" + ID, "profession", profession)
-            a += r.hset("doctor:" + ID, "hospital_ID", hospital_ID)
+            a += r.hset("doctor:" + ID, "hospital_ID", hospital_ID if hospital_ID else "")
 
             r.incr("doctor:autoID")
         except redis.exceptions.ConnectionError:
             self.set_status(400)
             self.write("Redis connection refused")
         else:
-            if (a != 3):
+            if a != 3:
                 self.set_status(500)
                 self.write("Something went terribly wrong")
             else:
@@ -129,11 +139,14 @@ class PatientHandler(tornado.web.RequestHandler):
     def get(self):
         items = []
         try:
-            ID = r.get("patient:autoID").decode()
+            ID = r.get("patient:autoID")
+            if ID is None:
+                ID = b'0'
+            ID = int(ID.decode())
 
-            for i in range(int(ID)):
+            for i in range(ID):
                 result = r.hgetall("patient:" + str(i))
-                if result:
+                if result and b'surname' in result and b'born_date' in result and b'sex' in result and b'mpn' in result:
                     items.append(result)
 
         except redis.exceptions.ConnectionError:
@@ -153,7 +166,6 @@ class PatientHandler(tornado.web.RequestHandler):
             self.write("All fields required")
             return
 
-        # wow what a check
         if sex not in ['M', 'F']:
             self.set_status(400)
             self.write("Sex must be 'M' or 'F'")
@@ -162,9 +174,12 @@ class PatientHandler(tornado.web.RequestHandler):
         logging.debug(surname + ' ' + born_date + ' ' + sex + ' ' + mpn)
 
         try:
-            ID = r.get("patient:autoID").decode()
+            ID = r.get("patient:autoID")
+            if ID is None:
+                ID = b'0'
+            ID = ID.decode()
 
-            a  = r.hset("patient:" + ID, "surname", surname)
+            a = r.hset("patient:" + ID, "surname", surname)
             a += r.hset("patient:" + ID, "born_date", born_date)
             a += r.hset("patient:" + ID, "sex", sex)
             a += r.hset("patient:" + ID, "mpn", mpn)
@@ -174,7 +189,7 @@ class PatientHandler(tornado.web.RequestHandler):
             self.set_status(400)
             self.write("Redis connection refused")
         else:
-            if (a != 4):
+            if a != 4:
                 self.set_status(500)
                 self.write("Something went terribly wrong")
             else:
@@ -185,13 +200,16 @@ class DiagnosisHandler(tornado.web.RequestHandler):
     def get(self):
         items = []
         try:
-            ID = r.get("diagnosis:autoID").decode()
+            ID = r.get("diagnosis:autoID")
+            if ID is None:
+                ID = b'0'
+            ID = int(ID.decode())
 
-            for i in range(int(ID)):
+            for i in range(ID):
                 result = r.hgetall("diagnosis:" + str(i))
-                if result:
+                if result and b'patient_ID' in result and b'type' in result and b'information' in result:
                     items.append(result)
-            
+
         except redis.exceptions.ConnectionError:
             self.set_status(400)
             self.write("Redis connection refused")
@@ -205,22 +223,24 @@ class DiagnosisHandler(tornado.web.RequestHandler):
 
         if not patient_ID or not diagnosis_type:
             self.set_status(400)
-            self.write("Patiend ID and diagnosis type required")
+            self.write("Patient ID and diagnosis type required")
             return
 
         logging.debug(patient_ID + ' ' + diagnosis_type + ' ' + information)
 
         try:
-            ID = r.get("diagnosis:autoID").decode()
+            ID = r.get("diagnosis:autoID")
+            if ID is None:
+                ID = b'0'
+            ID = ID.decode()
 
             patient = r.hgetall("patient:" + patient_ID)
-
             if not patient:
                 self.set_status(400)
                 self.write("No patient with such ID")
                 return
 
-            a  = r.hset("diagnosis:" + ID, "patient_ID", patient_ID)
+            a = r.hset("diagnosis:" + ID, "patient_ID", patient_ID)
             a += r.hset("diagnosis:" + ID, "type", diagnosis_type)
             a += r.hset("diagnosis:" + ID, "information", information)
 
@@ -229,7 +249,7 @@ class DiagnosisHandler(tornado.web.RequestHandler):
             self.set_status(400)
             self.write("Redis connection refused")
         else:
-            if (a != 3):
+            if a != 3:
                 self.set_status(500)
                 self.write("Something went terribly wrong")
             else:
@@ -240,9 +260,12 @@ class DoctorPatientHandler(tornado.web.RequestHandler):
     def get(self):
         items = {}
         try:
-            ID = r.get("doctor:autoID").decode()
+            ID = r.get("doctor:autoID")
+            if ID is None:
+                ID = b'0'
+            ID = int(ID.decode())
 
-            for i in range(int(ID)):
+            for i in range(ID):
                 result = r.smembers("doctor-patient:" + str(i))
                 if result:
                     items[i] = result
@@ -256,7 +279,7 @@ class DoctorPatientHandler(tornado.web.RequestHandler):
     def post(self):
         doctor_ID = self.get_argument('doctor_ID')
         patient_ID = self.get_argument('patient_ID')
-        
+
         if not doctor_ID or not patient_ID:
             self.set_status(400)
             self.write("ID required")
@@ -311,3 +334,4 @@ if __name__ == "__main__":
     tornado.options.parse_command_line()
     logging.info("Listening on " + str(PORT))
     tornado.ioloop.IOLoop.current().start()
+

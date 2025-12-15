@@ -1,0 +1,1 @@
+patient_ID=1&type=Flu&information=Mild symptoms
