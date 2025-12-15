@@ -38,17 +38,20 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run tests
+    - name: Run server in background
       working-directory: python3-app
       run: |
-        echo "Current directory:"
-        pwd
-        echo "List files:"
-        ls -la
-        echo "Python version:"
-        python --version
-        echo "Pip version:"
-        pip --version
-        echo "Running tests..."
-        python -m unittest discover tests -v
+        python main.py &   # запускаем сервер в фоне
+        # ждём, пока сервер будет слушать порт 8888
+        for i in {1..30}; do
+          if nc -z localhost 8888; then
+            echo "Server is up"
+            break
+          fi
+          echo "Waiting for server to start..."
+          sleep 1
+        done
 
+    - name: Run tests
+      working-directory: python3-app
+      run: python -m unittest discover tests -v
