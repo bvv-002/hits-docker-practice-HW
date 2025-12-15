@@ -20,29 +20,29 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
 
-    - name: List files in root
-      run: ls -l
-
-    - name: List files in python3-app
-      working-directory: python3-app
-      run: ls -l
-
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: 3.9
 
     - name: Install dependencies
-      working-directory: python3-app
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -r python3-app/requirements.txt
 
-    - name: Run app server
+    - name: Run application in background
       working-directory: python3-app
       run: |
         nohup python3 main.py &
-        sleep 5
+
+    - name: Wait for app to start
+      run: sleep 5
+
+    - name: Prepare test data
+      run: |
+        curl -X POST http://localhost:8888/hospital -d "name=TestHospital&address=TestAddress&beds_number=10&phone=12345"
+        curl -X POST http://localhost:8888/patient -d "surname=TestPatient&born_date=1990-01-01&sex=M&mpn=123456"
+        curl -X POST http://localhost:8888/doctor -d "surname=TestDoctor&profession=Therapist&hospital_ID=1"
 
     - name: Run tests
       working-directory: python3-app
